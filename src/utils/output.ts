@@ -24,17 +24,21 @@ type ToolResult = { content: Array<{ type: string; text: string }> };
  * - http: returns summary + inline JSON data
  */
 export function outputReport(reportType: string, data: unknown, summary: string): ToolResult {
-  if (isHttpMode()) {
-    return {
-      content: [
-        { type: "text", text: summary },
-        { type: "text", text: JSON.stringify(data) },
-      ],
-    };
+  // Always return full data inline — works for both HTTP and stdio clients.
+  // In stdio mode, also write the report to a temp file as a side effect
+  // for debugging / manual inspection, but the primary response carries the data.
+  if (!isHttpMode()) {
+    try {
+      writeReport(reportType, data);
+    } catch {
+      // Non-fatal: if the temp file write fails, we still return the data inline
+    }
   }
 
-  const filepath = writeReport(reportType, data);
   return {
-    content: [{ type: "text", text: `${summary}\n\nFull data: ${filepath}` }],
+    content: [
+      { type: "text", text: summary },
+      { type: "text", text: JSON.stringify(data) },
+    ],
   };
 }
